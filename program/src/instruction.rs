@@ -1,4 +1,5 @@
-use solana_program::program_error::ProgramError;
+use borsh::{BorshDeserialize, BorshSerialize};
+use solana_program::{program_error::ProgramError};
 use crate::error::BlogError::InvalidInstruction;
 
 pub enum BlogInstruction {
@@ -15,20 +16,38 @@ pub enum BlogInstruction {
     /// 0. `[signer]` User account who is creating the post
     /// 1. `[writable]` Blog account for which post is being created
     /// 2. `[writable]` Post account derived from PDA
+    /// 3. `[]` System Program
     CreatePost {
-        post_account_bump: u8,
+        ix_data_len: usize,
         slug: String,
         title: String,
         content: String,
     }
 }
 
+#[derive(BorshDeserialize, Debug)]
+struct PostIxPayload {
+    slug: String,
+    title: String,
+    content: String
+}
+
+
 impl BlogInstruction {
     pub fn unpack(input: &[u8]) -> Result<Self, ProgramError> {
-        let (tag, _rest) = input.split_first().ok_or(InvalidInstruction)?;
+        let (variant, rest) = input.split_first().ok_or(InvalidInstruction)?;
+        let ix_data_len = rest.try_to_vec()?.len();
+        let payload = PostIxPayload::try_from_slice(rest).unwrap();
+        
 
-        Ok(match tag {
+        Ok(match variant {
             0 => Self::InitBlog {},
+            1 => Self::CreatePost {
+                ix_data_len,
+                slug: payload.slug,
+                title: payload.title,
+                content: payload.content
+            },
             _ => return Err(InvalidInstruction.into()),
         })
     }

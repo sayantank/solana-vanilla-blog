@@ -9,6 +9,9 @@ pub enum BlogError {
     #[error("Invalid Blog Account")]
     InvalidBlogAccount,
 
+    #[error("Invalid Post Account")]
+    InvalidPostAccount,
+
     #[error("Account not Writable")]
     AccountNotWritable,
 }
