@@ -1,4 +1,3 @@
-
 use std::convert::TryInto;
 use crate::{
     state::{Blog, Post}, 
@@ -17,13 +16,13 @@ use solana_program::{
     msg,
     entrypoint::ProgramResult,
     program_error::ProgramError,
-    sysvar::{rent::Rent, Sysvar}
+    sysvar::{rent::Rent, Sysvar}, borsh::try_from_slice_unchecked
 };
 
 pub struct Processor;
 impl Processor {
     pub fn process(program_id: &Pubkey, accounts: &[AccountInfo], instruction_data: &[u8]) -> ProgramResult {
-        msg!("instruction_data: {:?}", instruction_data);
+        
         let instruction = BlogInstruction::unpack(instruction_data)?;
 
         match instruction {
@@ -31,16 +30,15 @@ impl Processor {
                 msg!("Instruction: InitBlog");
                 Self::process_init_blog(accounts, program_id)
             },
-            BlogInstruction::CreatePost { ix_data_len, slug, title, content} => {
+            BlogInstruction::CreatePost { slug, title, content} => {
                 msg!("Instruction: CreatePost");
-                Self::process_create_post(accounts, ix_data_len, slug, title, content, program_id)
+                Self::process_create_post(accounts, slug, title, content, program_id)
             }
         }
     }
 
     fn process_create_post(
         accounts: &[AccountInfo],
-        ix_data_len: usize,
         slug: String,
         title: String,
         content: String,
@@ -57,17 +55,23 @@ impl Processor {
             return Err(ProgramError::MissingRequiredSignature);
         }
 
-        let (blog_pda, _blog_bump) = Pubkey::find_program_address(&[b"blog".as_ref(), authority_account.key.as_ref()], program_id);
+        let (blog_pda, _blog_bump) = Pubkey::find_program_address(
+            &[b"blog".as_ref(), authority_account.key.as_ref()],
+            program_id
+        );
         if blog_pda != *blog_account.key || !blog_account.is_writable || blog_account.data_is_empty() {
             return Err(InvalidBlogAccount.into())
         }
 
-        let (post_pda, post_bump) = Pubkey::find_program_address(&[b"post".as_ref(), slug.as_ref(), authority_account.key.as_ref()], program_id);
+        let (post_pda, post_bump) = Pubkey::find_program_address(
+            &[b"post".as_ref(), slug.as_ref(), authority_account.key.as_ref()],
+            program_id
+        );
         if post_pda != *post_account.key {
             return Err(InvalidPostAccount.into())
         }
 
-        let post_len: usize = 32 + 32 + 1 + (4 + slug.len()) + (4 + content.len()) + (4 + content.len());
+        let post_len: usize = 32 + 32 + 1 + (4 + slug.len()) + (4 + title.len()) + (4 + content.len());
 
         let rent = Rent::get()?;
         let rent_lamports = rent.minimum_balance(post_len);
@@ -95,7 +99,7 @@ impl Processor {
             ]]
         )?;
 
-        let mut post_account_state = Post::try_from_slice(&post_account.data.borrow())?;
+        let mut post_account_state = try_from_slice_unchecked::<Post>(&post_account.data.borrow()).unwrap();
         post_account_state.author = *authority_account.key;
         post_account_state.blog = *blog_account.key;
         post_account_state.bump = post_bump;
@@ -108,8 +112,8 @@ impl Processor {
 
 
         let mut blog_account_state = Blog::try_from_slice(&blog_account.data.borrow())?;
-        msg!("Blog account: {:?}", blog_account_state);
         blog_account_state.post_count += 1;
+
         msg!("Serializing Blog data");
         blog_account_state.serialize(&mut &mut blog_account.data.borrow_mut()[..])?;
 
@@ -130,8 +134,10 @@ impl Processor {
             return Err(ProgramError::MissingRequiredSignature);
         }
 
-        let (blog_pda, blog_bump) = Pubkey::find_program_address(&[b"blog".as_ref(), authority_account.key.as_ref()], program_id);
-        msg!("blog_bump: {}", blog_bump);
+        let (blog_pda, blog_bump) = Pubkey::find_program_address(
+            &[b"blog".as_ref(), authority_account.key.as_ref()],
+            program_id 
+        );
         if blog_pda != *blog_account.key {
             return Err(InvalidBlogAccount.into())
         }
@@ -161,7 +167,6 @@ impl Processor {
             ]]
         )?;
 
-        msg!("Updating blog account state!");
         let mut blog_account_state = Blog::try_from_slice(&blog_account.data.borrow())?;
         blog_account_state.authority = *authority_account.key;
         blog_account_state.bump = blog_bump;

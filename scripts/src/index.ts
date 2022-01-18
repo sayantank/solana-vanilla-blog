@@ -78,8 +78,6 @@ const main = async () => {
   IX_DATA_LAYOUT.encode(postIxPayload, postBuffer);
   const postIxData = postBuffer.slice(0, IX_DATA_LAYOUT.getSpan(postBuffer));
 
-  console.log("PostIxData: ", postIxData);
-
   const createPostIx = new TransactionInstruction({
     programId: PROGRAM_ID,
     keys: [

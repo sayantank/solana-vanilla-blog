@@ -21,7 +21,3 @@ pub struct Post {
 impl Blog {
     pub const LEN: usize = 32 + 1 + 1;
 }
-
-impl Post {
-    pub const LEN: usize = 32 + 32 + 1 + 10 + 20 + 50;
-}

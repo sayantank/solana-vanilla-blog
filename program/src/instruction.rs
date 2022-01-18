@@ -1,4 +1,4 @@
-use borsh::{BorshDeserialize, BorshSerialize};
+use borsh::{BorshDeserialize};
 use solana_program::{program_error::ProgramError};
 use crate::error::BlogError::InvalidInstruction;
 
@@ -18,7 +18,6 @@ pub enum BlogInstruction {
     /// 2. `[writable]` Post account derived from PDA
     /// 3. `[]` System Program
     CreatePost {
-        ix_data_len: usize,
         slug: String,
         title: String,
         content: String,
@@ -36,14 +35,11 @@ struct PostIxPayload {
 impl BlogInstruction {
     pub fn unpack(input: &[u8]) -> Result<Self, ProgramError> {
         let (variant, rest) = input.split_first().ok_or(InvalidInstruction)?;
-        let ix_data_len = rest.try_to_vec()?.len();
         let payload = PostIxPayload::try_from_slice(rest).unwrap();
-        
 
         Ok(match variant {
             0 => Self::InitBlog {},
             1 => Self::CreatePost {
-                ix_data_len,
                 slug: payload.slug,
                 title: payload.title,
                 content: payload.content
